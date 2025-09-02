@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 @SpringBootApplication
-@MapperScan("org.example.tujucloudbackend.mapper")
+@MapperScan("org.example.tujucloudbackend.service.mapper")
 @EnableAspectJAutoProxy(exposeProxy = true) //暴露当前代理对象
 public class TujuCloudBackendApplication {
 
