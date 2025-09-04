@@ -12,6 +12,12 @@ spring:
     url: jdbc:mysql://localhost:3307/tujucloud
     username: root
     password: 123
+  profiles:
+    active: local
+  # 文件上传体积的配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
 
 mybatis-plus:
   configuration:
