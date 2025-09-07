@@ -1,7 +1,10 @@
 package org.example.tujucloudbackend.controller;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
 import org.example.tujucloudbackend.annotation.AuthCheck;
 import org.example.tujucloudbackend.common.BaseResponse;
@@ -20,14 +23,19 @@ import org.example.tujucloudbackend.model.vo.PictureVO;
 import org.example.tujucloudbackend.service.PictureService;
 import org.example.tujucloudbackend.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author : Yuan
@@ -43,6 +51,18 @@ public class PictureController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    /**
+     * 本地缓存
+     */
+    private final Cache<String,String> LOCAL_CACHE = Caffeine.newBuilder()
+            .initialCapacity(1024)
+            .maximumSize(10_000)
+            .expireAfterWrite(Duration.ofMinutes(5))
+            .build();
 
     /**
      * 上传图片（可重新上传）
@@ -91,7 +111,9 @@ public class PictureController {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
 
-        pictureService.removeById(deleteRequest.getId());
+        boolean result = pictureService.removeById(deleteRequest.getId());
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        pictureService.cleanPictureFile(olderPicture);
         return ResultUtils.success(true);
     }
 
@@ -189,6 +211,57 @@ public class PictureController {
                 pictureService.getQueryWrapper(pictureQueryRequest));
         // 获取封装类
         return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
+    }
+
+
+    /**
+     * 分页获取图片列表（封装类）【用户缓存】
+     */
+    @PostMapping("/list/page/vo/cache")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest,
+                                                             HttpServletRequest request) {
+        long current = pictureQueryRequest.getCurrent();
+        long size = pictureQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        //普通用户只能看到审核通过
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+        //构建缓存的key
+        String jsonStr = JSONUtil.toJsonStr(pictureQueryRequest);
+        String redisHashValue = DigestUtils.md5DigestAsHex(jsonStr.getBytes());
+        String cacheKey = String.format("tujucloud:listPictureVOByPage:%s",redisHashValue);
+
+        //查询缓存[本地缓存、redis缓存]
+        //本地缓存存在,直接读取
+        String LocalCacheValue = LOCAL_CACHE.getIfPresent(cacheKey);
+        if(LocalCacheValue != null){
+            //使用JSONUtil.toBean()方法将JSON字符串转换为Java对象
+            Page<PictureVO> pictureVO = JSONUtil.toBean(LocalCacheValue, Page.class);
+            return ResultUtils.success(pictureVO);
+        }
+
+        //不存在，查询redis
+        ValueOperations<String, String> stringStringValueOperations = stringRedisTemplate.opsForValue();
+        String redisCacheValue = stringStringValueOperations.get(cacheKey);
+        if(redisCacheValue != null){
+            //使用JSONUtil.toBean()方法将JSON字符串转换为Java对象
+            Page<PictureVO> pictureVO = JSONUtil.toBean(redisCacheValue, Page.class);
+            return ResultUtils.success(pictureVO);
+        }
+        //都不存在、查询数据库
+        Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
+                pictureService.getQueryWrapper(pictureQueryRequest));
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+
+        //设置redis缓存
+        String cacheValue = JSONUtil.toJsonStr(pictureVOPage);
+        //设置随机的缓存时间
+        int cacheExpireTime = 300 + RandomUtil.randomInt(0, 300);
+        stringRedisTemplate.opsForValue().set(cacheKey, cacheValue, cacheExpireTime, TimeUnit.SECONDS);
+        //设置本地缓存
+        LOCAL_CACHE.put(cacheKey, cacheValue);
+        // 获取封装类
+        return ResultUtils.success(pictureVOPage);
     }
 
     /**

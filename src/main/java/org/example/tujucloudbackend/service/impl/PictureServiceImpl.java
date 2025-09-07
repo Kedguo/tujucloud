@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.tujucloudbackend.exception.BusinessException;
 import org.example.tujucloudbackend.exception.ErrorCode;
 import org.example.tujucloudbackend.exception.ThrowUtils;
+import org.example.tujucloudbackend.manager.CosManager;
 import org.example.tujucloudbackend.manager.FileManager;
 import org.example.tujucloudbackend.manager.upload.FilePictureUpload;
 import org.example.tujucloudbackend.manager.upload.PictureUploadTemplate;
@@ -32,6 +33,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -54,9 +57,6 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         implements PictureService {
 
     @Resource
-    private FileManager fileManager;
-
-    @Resource
     private UserService userService;
 
     @Resource
@@ -64,6 +64,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
     @Resource
     private UrlPictureUpload urlPictureUpload;
+    @Autowired
+    private CosManager cosManager;
 
     @Override
     public PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser) {
@@ -100,12 +102,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
         Picture picture = new Picture();
         picture.setUrl(uploadPictureResult.getUrl());
+        picture.setThumbnailUrl(uploadPictureResult.getThumbnailUrl());
         // 支持外层传递图片名称
         String picName = uploadPictureResult.getPicName();
         if (pictureUploadRequest != null && StrUtil.isNotBlank(pictureUploadRequest.getPicName())) {
             picName = pictureUploadRequest.getPicName();
         }
-        picture.setName(picName);
+
+        if (picName != null && picName.length() >= 4 && "null".equals(picName.substring(0, 4))) {
+            picture.setName("图片" + picName.substring(4));
+        } else {
+            picture.setName(picName);
+        }
         picture.setPicSize(uploadPictureResult.getPicSize());
         picture.setPicWidth(uploadPictureResult.getPicWidth());
         picture.setPicHeight(uploadPictureResult.getPicHeight());
@@ -309,11 +317,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
         //校验参数
         String searchText = pictureUploadByBatchRequest.getSearchText();
+        if (StrUtil.isBlank(searchText)){
+            searchText = "壁纸";
+        }
         Integer count = pictureUploadByBatchRequest.getCount();
         String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
         if (StrUtil.isBlank(namePrefix)) {
             namePrefix = searchText;
         }
+
         ThrowUtils.throwIf( count > 30, ErrorCode.PARAMS_ERROR, "最多30条");
         // 抓取内容
         String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);
@@ -368,6 +380,45 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return uploadCount;
     }
 
+    @Async
+    @Override
+    public void cleanPictureFile(Picture picture) {
+        String pictureUrl = picture.getUrl();
+        Long count = this.lambdaQuery()
+                .eq(Picture::getUrl, pictureUrl)
+                .count();
+        // 如果图片url被其他图片引用，则不删除
+        if (count > 1){
+            //不清理
+            return;
+        }
+
+        // 提取路径部分
+        cosManager.deleteObject(extractPathFromUrl(pictureUrl));
+
+        String thumbnailUrl = picture.getThumbnailUrl();
+        if (StrUtil.isNotBlank(thumbnailUrl)) {
+            cosManager.deleteObject(extractPathFromUrl(thumbnailUrl));
+        }
+    }
+
+    /**
+     * 从完整URL中提取路径部分
+     * @param url 完整的URL
+     * @return 路径部分
+     * 原 URL:https://xxx.com/abc/1122/yyy.webp
+     * 提取的：abc/1122/yyy.webp
+     */
+    private String extractPathFromUrl(String url) {
+        if (StrUtil.isBlank(url)) {
+            return "";
+        }
+        int domainIndex = url.indexOf(".com/");
+        if (domainIndex != -1) {
+            return url.substring(domainIndex + 5); // +5 是为了跳过 ".com/"
+        }
+        return url; // 如果没有找到域名，返回原URL
+    }
 }
 
 
