@@ -2,15 +2,11 @@ package org.example.tujucloudbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.example.tujucloudbackend.model.dto.picture.PictureQueryRequest;
-import org.example.tujucloudbackend.model.dto.picture.PictureReviewRequest;
-import org.example.tujucloudbackend.model.dto.picture.PictureUploadByBatchRequest;
-import org.example.tujucloudbackend.model.dto.picture.PictureUploadRequest;
+import org.example.tujucloudbackend.model.dto.picture.*;
 import org.example.tujucloudbackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.example.tujucloudbackend.model.entity.User;
 import org.example.tujucloudbackend.model.vo.PictureVO;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -98,9 +94,26 @@ public interface PictureService extends IService<Picture> {
                                  User loginUser);
 
     /**
-     * 清理图片文件
+     * 清理图片文件(服务器)
      */
     void cleanPictureFile(Picture  picture);
 
+
+
+    void checkPictureAuth(User loginUser, Picture picture);
+
+    /**
+     * 删除图片
+     * @param pictureId
+     * @param loginUser
+     */
+    void deletePicture(Long pictureId, User loginUser);
+
+    /**
+     * 编辑图片
+     * @param pictureEditRequest
+     * @param loginUser
+     */
+    void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
 
 }

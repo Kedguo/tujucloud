@@ -124,4 +124,9 @@ public class Picture {
      * 审核时间
      */
     private Date reviewTime;
+
+    /**
+     * 空间 id
+     */
+    private Long spaceId;
 }
