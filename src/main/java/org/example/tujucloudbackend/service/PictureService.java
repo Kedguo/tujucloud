@@ -9,6 +9,7 @@ import org.example.tujucloudbackend.model.entity.User;
 import org.example.tujucloudbackend.model.vo.PictureVO;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * @author 行者
@@ -115,5 +116,23 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser
      */
     void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
+
+    /**
+     * 根据颜色搜索图片
+     *
+     * @param loginUser
+     * @param spaceId
+     * @param picColor
+     * @return
+     */
+    List<PictureVO> searchPictureColor(User loginUser, Long spaceId, String picColor);
+
+    /**
+     * 批量编辑图片
+     *
+     * @param pictureEditByBatchRequest
+     * @param loginUser
+     */
+    void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
 
 }
