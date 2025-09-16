@@ -5,15 +5,17 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.example.tujucloudbackend.api.aliyun.AliyunAiApi;
+import org.example.tujucloudbackend.api.aliyun.model.CreateOutPaintingTaskRequest;
+import org.example.tujucloudbackend.api.aliyun.model.CreateOutTaskResponse;
+import org.example.tujucloudbackend.api.aliyun.model.GetOutPaintingTaskResponse;
 import org.example.tujucloudbackend.exception.BusinessException;
 import org.example.tujucloudbackend.exception.ErrorCode;
 import org.example.tujucloudbackend.exception.ThrowUtils;
 import org.example.tujucloudbackend.manager.CosManager;
-import org.example.tujucloudbackend.manager.FileManager;
 import org.example.tujucloudbackend.manager.upload.FilePictureUpload;
 import org.example.tujucloudbackend.manager.upload.PictureUploadTemplate;
 import org.example.tujucloudbackend.manager.upload.UrlPictureUpload;
@@ -72,6 +74,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     private SpaceService spaceService;
     @Resource
     private TransactionTemplate transactionTemplate;
+    @Resource
+    private AliyunAiApi aliyunAiApi;
 
 
     @Override
@@ -607,6 +611,23 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
         boolean result = this.updateBatchById(pictureVOList);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "批量编辑失败");
+
+    }
+
+    @Override
+    public CreateOutTaskResponse createPictureOutPaintingTaskRequest(CreatePictureOutPaintingTaskRequest request,User loginUser) {
+        Long pictureId = request.getPictureId();
+        Picture picture = Optional.ofNullable(this.getById(pictureId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND_ERROR, "图片不存在"));
+
+        checkPictureAuth(loginUser, picture);
+        CreateOutPaintingTaskRequest createOutPaintingTaskRequest = new CreateOutPaintingTaskRequest();
+        CreateOutPaintingTaskRequest.Input input = new CreateOutPaintingTaskRequest.Input();
+        input.setImageUrl(picture.getUrl());
+        createOutPaintingTaskRequest.setInput(input);
+        createOutPaintingTaskRequest.setParameters(request.getParameters());
+
+        return aliyunAiApi.createOutTask(createOutPaintingTaskRequest);
 
     }
 

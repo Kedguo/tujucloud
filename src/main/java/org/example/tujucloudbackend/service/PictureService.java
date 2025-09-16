@@ -2,6 +2,7 @@ package org.example.tujucloudbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.example.tujucloudbackend.api.aliyun.model.CreateOutTaskResponse;
 import org.example.tujucloudbackend.model.dto.picture.*;
 import org.example.tujucloudbackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -134,5 +135,14 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser
      */
     void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
+
+
+    /**
+     * 创建扩图任务
+     *
+     * @param request
+     * @param loginUser
+     */
+    CreateOutTaskResponse createPictureOutPaintingTaskRequest(CreatePictureOutPaintingTaskRequest request, User loginUser);
 
 }

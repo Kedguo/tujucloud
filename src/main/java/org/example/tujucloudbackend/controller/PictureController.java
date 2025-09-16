@@ -1,6 +1,7 @@
 package org.example.tujucloudbackend.controller;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -9,6 +10,9 @@ import com.qcloud.cos.model.ciModel.image.ImageSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.example.tujucloudbackend.annotation.AuthCheck;
 import org.example.tujucloudbackend.api.ImageSearchApiFacade;
+import org.example.tujucloudbackend.api.aliyun.AliyunAiApi;
+import org.example.tujucloudbackend.api.aliyun.model.CreateOutTaskResponse;
+import org.example.tujucloudbackend.api.aliyun.model.GetOutPaintingTaskResponse;
 import org.example.tujucloudbackend.api.imagesearch.ImageSearchResult;
 import org.example.tujucloudbackend.common.BaseResponse;
 import org.example.tujucloudbackend.common.DeleteRequest;
@@ -61,6 +65,9 @@ public class PictureController {
 
     @Resource
     private SpaceService spaceService;
+
+    @Resource
+    private AliyunAiApi aliyunAiApi;
     /**
      * 本地缓存
      */
@@ -364,6 +371,27 @@ public class PictureController {
         User loginUser = userService.getLoginUser(request);
         pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
         return ResultUtils.success(true);
+    }
+
+    @PostMapping("/out_painting/create_task")
+    public BaseResponse<CreateOutTaskResponse> createPictureOutPaintingTask(@RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
+                                                                            HttpServletRequest request) {
+        if (createPictureOutPaintingTaskRequest == null || createPictureOutPaintingTaskRequest.getPictureId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        CreateOutTaskResponse response = pictureService.createPictureOutPaintingTaskRequest(createPictureOutPaintingTaskRequest, loginUser);
+        return ResultUtils.success(response);
+    }
+
+    /**
+     * 查询 AI 扩图任务
+     */
+    @GetMapping("/out_painting/get_task")
+    public BaseResponse<GetOutPaintingTaskResponse> getPictureOutPaintingTask(String taskId) {
+        ThrowUtils.throwIf(StrUtil.isBlank(taskId), ErrorCode.PARAMS_ERROR);
+        GetOutPaintingTaskResponse task = aliyunAiApi.getOutTask(taskId);
+        return ResultUtils.success(task);
     }
 
 }
