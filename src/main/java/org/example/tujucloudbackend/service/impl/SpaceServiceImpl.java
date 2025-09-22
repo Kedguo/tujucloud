@@ -12,11 +12,15 @@ import org.example.tujucloudbackend.mapper.SpaceMapper;
 import org.example.tujucloudbackend.model.dto.space.SpaceAddRequest;
 import org.example.tujucloudbackend.model.dto.space.SpaceQueryRequest;
 import org.example.tujucloudbackend.model.entity.Space;
+import org.example.tujucloudbackend.model.entity.SpaceUser;
 import org.example.tujucloudbackend.model.entity.User;
 import org.example.tujucloudbackend.model.enums.SpaceLevelEnum;
+import org.example.tujucloudbackend.model.enums.SpaceRoleEnum;
+import org.example.tujucloudbackend.model.enums.SpaceTypeEnum;
 import org.example.tujucloudbackend.model.vo.SpaceVO;
 import org.example.tujucloudbackend.model.vo.UserVO;
 import org.example.tujucloudbackend.service.SpaceService;
+import org.example.tujucloudbackend.service.SpaceUserService;
 import org.example.tujucloudbackend.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -45,13 +49,18 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
     @Resource
     private TransactionTemplate transactionTemplate;
 
+    @Resource
+    private SpaceUserService spaceUserService;
+
     @Override
     public void validSpace(Space space, Boolean add) {
         ThrowUtils.throwIf(space == null, ErrorCode.PARAMS_ERROR);
         // 从对象中取值
         String spaceName = space.getSpaceName();
         Integer spaceLevel = space.getSpaceLevel();
+        Integer spaceType = space.getSpaceType();
         SpaceLevelEnum spaceLevelEnum = SpaceLevelEnum.getEnumByValue(spaceLevel);
+        SpaceTypeEnum spaceTypeEnum = SpaceTypeEnum.getEnumByValue(spaceType);
 
         // 创建时校验
         if (add) {
@@ -60,6 +69,9 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
             }
             if (spaceLevel == null) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间级别不能为空");
+            }
+            if (spaceType == null) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间类型不能为空");
             }
 
         }
@@ -70,6 +82,10 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
         // 修改数据时，空间级别进行校验
         if (spaceLevel != null && spaceLevelEnum == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间级别不存在");
+        }
+
+        if (spaceType != null && spaceTypeEnum == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间类型不存在");
         }
     }
 
@@ -165,6 +181,10 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
         if(spaceAddRequest.getSpaceLevel() == null){
             space.setSpaceLevel(SpaceLevelEnum.COMMON.getValue());
         }
+        if (spaceAddRequest.getSpaceType() == null) {
+            space.setSpaceType(SpaceTypeEnum.PRIVATE.getValue());
+        }
+
         //填充容量大小
         this.fillSpaceBySpaceLevel(space);
         //校验参数
@@ -182,12 +202,22 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
                 //判断是否有空间
                 boolean exists = this.lambdaQuery()
                         .eq(Space::getUserId, userId)
+                        .eq(Space::getSpaceType, space.getSpaceType())
                         .exists();
                 //如果有空间，不创建
-                ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "用户已创建空间");
+                ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "每个用户的私有空间获团队空间只能创建一个");
                 //创建
                 boolean save = this.save(space);
                 ThrowUtils.throwIf(!save, ErrorCode.OPERATION_ERROR, "创建空间失败");
+                // 创建成功后，如果是团队空间，关联新增团队成员记录
+                if (SpaceTypeEnum.TEAM.getValue() == space.getSpaceType()) {
+                    SpaceUser spaceUser = new SpaceUser();
+                    spaceUser.setSpaceId(space.getId());
+                    spaceUser.setUserId(userId);
+                    spaceUser.setSpaceRole(SpaceRoleEnum.ADMIN.getValue());
+                    save = spaceUserService.save(spaceUser);
+                    ThrowUtils.throwIf(!save, ErrorCode.OPERATION_ERROR, "创建团队成员记录失败");
+                }
                 //返回新写入的id
                 return space.getId();
             });

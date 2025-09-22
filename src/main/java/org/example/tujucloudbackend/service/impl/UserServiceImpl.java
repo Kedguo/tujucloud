@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.tujucloudbackend.constant.UserConstant;
 import org.example.tujucloudbackend.exception.BusinessException;
 import org.example.tujucloudbackend.exception.ErrorCode;
+import org.example.tujucloudbackend.manager.auth.StpKit;
 import org.example.tujucloudbackend.model.dto.user.UserQueryRequest;
 import org.example.tujucloudbackend.model.entity.User;
 import org.example.tujucloudbackend.model.enums.UserRoleEnum;
@@ -99,11 +100,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         // 4. 保存用户的登录态
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
-/*        // 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
+        // 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
         StpKit.SPACE.login(user.getId());
-        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);*/
-
-
+        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);
     }
 

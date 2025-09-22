@@ -1,10 +1,6 @@
 package org.example.tujucloudbackend.controller;
 
-import cn.hutool.core.util.RandomUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
 import org.example.tujucloudbackend.annotation.AuthCheck;
 import org.example.tujucloudbackend.common.BaseResponse;
@@ -14,33 +10,22 @@ import org.example.tujucloudbackend.constant.UserConstant;
 import org.example.tujucloudbackend.exception.BusinessException;
 import org.example.tujucloudbackend.exception.ErrorCode;
 import org.example.tujucloudbackend.exception.ThrowUtils;
-import org.example.tujucloudbackend.model.dto.picture.*;
+import org.example.tujucloudbackend.manager.auth.SpaceUserAuthManager;
 import org.example.tujucloudbackend.model.dto.space.*;
-import org.example.tujucloudbackend.model.entity.Picture;
 import org.example.tujucloudbackend.model.entity.Space;
 import org.example.tujucloudbackend.model.entity.User;
-import org.example.tujucloudbackend.model.enums.PictureReviewStatusEnum;
 import org.example.tujucloudbackend.model.enums.SpaceLevelEnum;
-import org.example.tujucloudbackend.model.vo.PictureTagCategory;
-import org.example.tujucloudbackend.model.vo.PictureVO;
 import org.example.tujucloudbackend.model.vo.SpaceVO;
-import org.example.tujucloudbackend.service.PictureService;
 import org.example.tujucloudbackend.service.SpaceService;
 import org.example.tujucloudbackend.service.UserService;
 import org.springframework.beans.BeanUtils;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -56,6 +41,9 @@ public class SpaceController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
 
     @PostMapping("/add")
@@ -175,8 +163,12 @@ public class SpaceController {
         // 查询数据库
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
         // 获取封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        return ResultUtils.success(spaceVO);
     }
 
     /**
