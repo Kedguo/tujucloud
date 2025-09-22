@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.example.tujucloudbackend.exception.BusinessException;
 import org.example.tujucloudbackend.exception.ErrorCode;
 import org.example.tujucloudbackend.exception.ThrowUtils;
+import org.example.tujucloudbackend.manager.sharding.DynamicShardingManager;
 import org.example.tujucloudbackend.mapper.SpaceMapper;
 import org.example.tujucloudbackend.model.dto.space.SpaceAddRequest;
 import org.example.tujucloudbackend.model.dto.space.SpaceQueryRequest;
@@ -23,6 +24,7 @@ import org.example.tujucloudbackend.service.SpaceService;
 import org.example.tujucloudbackend.service.SpaceUserService;
 import org.example.tujucloudbackend.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -51,6 +53,11 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
 
     @Resource
     private SpaceUserService spaceUserService;
+
+   
+    @Resource
+    @Lazy
+    private DynamicShardingManager dynamicShardingManager;
 
     @Override
     public void validSpace(Space space, Boolean add) {
@@ -218,6 +225,8 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
                     save = spaceUserService.save(spaceUser);
                     ThrowUtils.throwIf(!save, ErrorCode.OPERATION_ERROR, "创建团队成员记录失败");
                 }
+                //创建分表（仅对团队空间生效）
+                dynamicShardingManager.createSpacePictureTable(space);
                 //返回新写入的id
                 return space.getId();
             });
