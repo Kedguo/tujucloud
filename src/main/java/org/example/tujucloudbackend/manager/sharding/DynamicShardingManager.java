@@ -8,11 +8,10 @@ import org.apache.shardingsphere.mode.manager.ContextManager;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.rule.ShardingRule;
+import org.example.tujucloudbackend.model.entity.Space;
 import org.example.tujucloudbackend.model.enums.SpaceLevelEnum;
 import org.example.tujucloudbackend.model.enums.SpaceTypeEnum;
 import org.example.tujucloudbackend.service.SpaceService;
-import org.springframework.stereotype.Component;
-import org.example.tujucloudbackend.model.entity.Space;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.sql.DataSource;
@@ -23,7 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Component
+//@Component
 @Slf4j
 public class DynamicShardingManager {
 
