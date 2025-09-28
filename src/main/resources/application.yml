@@ -16,8 +16,6 @@ spring:
     url: jdbc:mysql://localhost:3307/tujucloud
     username: root
     password: 123
-  profiles:
-    active: local
   # 文件上传体积的配置
   servlet:
     multipart:
@@ -56,7 +54,7 @@ mybatis-plus:
     # MyBatis 配置 [为 false 时，保持原有的下划线命名格式（如 user_name）]
     map-underscore-to-camel-case: false
     # 仅在开发环境打印日志
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    #log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     # 全局配置
     db-config:

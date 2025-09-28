@@ -535,7 +535,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         //2.校验空间权限
         Space space = spaceService.getById(spaceId);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        if (!loginUser.getId().equals(space.getUserId())) {
+        if (!loginUser.getId().equals(space.getUserId()) && space.getSpaceType() == 0) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
         //3.查询该空间下的所有的图片(必须要有主色调)
